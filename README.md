@@ -29,3 +29,6 @@ npm install exchanger
     });
   });
 ```
+
+###otherinformation
+[EWS reference for Exchange](http://msdn.microsoft.com/en-us/library/office/bb204119\(v=exchg.150\).aspx)

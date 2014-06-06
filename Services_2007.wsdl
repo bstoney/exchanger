@@ -7,7 +7,7 @@
 				  xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
   <wsdl:types>
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-      <xs:import namespace="http://schemas.microsoft.com/exchange/services/2006/messages" schemaLocation="messages.xsd"/>
+      <xs:import namespace="http://schemas.microsoft.com/exchange/services/2006/messages" schemaLocation="messages_2007.xsd"/>
     </xs:schema>
   </wsdl:types>
   <wsdl:message name="ConvertIdSoapIn">

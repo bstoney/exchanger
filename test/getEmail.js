@@ -1,78 +1,88 @@
-var assert = require('assert')
-	, fs = require('fs')
-	, path = require('path')
-	, _ = require('underscore')
-	, settings = require('./settings')
-	, exchanger = require('../index')
-	;
+var assert = require('assert');
+var fs = require('fs');
+var path = require('path');
+var _ = require('underscore');
+var settings = require('./settings');
+var exchanger = require('../index');
 
 module.exports = {
-	setUp: function(callback) {
-		exchanger.client = { 
-			GetItem: function(soapRequest, callback) {
-				fs.readFile(path.join(__dirname, 'getEmailSoapResponse.xml'), 'utf8', function(err, body) {
-					var result = '';
-					callback(null, result, body);
-				});
-			}
-		};
+    setUp: function (callback) {
+        var self = this;
+        exchanger.client = {
+            GetItem: function (soapRequest, callback) {
+                self.lastSoapRequest = soapRequest;
+                fs.readFile(path.join(__dirname, 'getEmailSoapResponse.xml'), 'utf8', function (err, body) {
+                    var result = '';
+                    callback(null, result, body);
+                });
+            }
+        };
 
-		callback();
-	},
+        callback();
+    },
 
-	getEmailWithNoClient: function(test) {
-		exchanger.client = null;
+    getEmailWithNoClient: function (test) {
+        exchanger.client = null;
 
-		exchanger.getEmail(settings.itemId, function(err, email) {
-			test.ok(err);
-			test.done();
-		});
-	},
+        exchanger.getEmail(settings.itemId)
+            .then(test.ifError, test.ok)
+            .finally(function () {
+                test.expect(1);
+                test.done();
+            })
+            .done();
+    },
 
-	getEmailWithItemId: function(test) {
-		exchanger.getEmail(settings.itemId, function(err, email) {
-			test.ifError(err);
-			test.ok(email);
-			test.done();
-  	});
-	},
+    getEmailWithItemId: function (test) {
+        exchanger.getEmail(settings.itemId)
+            .then(function (email) {
+                test.ok(email);
+            })
+            .catch(test.ifError)
+            .finally(test.done)
+            .done();
+    },
 
-	getEmailWithId: function(test) {
-		var id = settings.itemId.id + "|" + settings.itemId.changeKey;
-		exchanger.getEmail(id, function(err, email) {
-			test.ifError(err);
-			test.ok(email);
-			test.done();
-  	});
-	},
+    getEmailWithId: function (test) {
+        var id = settings.itemId.id + "|" + settings.itemId.changeKey;
+        exchanger.getEmail(id)
+            .then(function (email) {
+                test.ok(email);
+            })
+            .catch(test.ifError)
+            .finally(test.done)
+            .done();
+    },
 
-	getEmailWithInvalidId: function(test) {
-		var id = "blob";
-		exchanger.getEmail(id, function(err, email) {
-			test.ok(err);
-			test.ifError(email);
-			test.done();
-  	});
-	},
+    getEmailWithInvalidId: function (test) {
+        var id = "blob";
+        exchanger.getEmail(id)
+            .then(test.ifError, test.ok)
+            .finally(function () {
+                test.expect(1);
+                test.done();
+            })
+            .done();
 
-	getEmailMailboxesSet: function(test) {
-		exchanger.getEmail(settings.itemId, function(err, email) {
-			var mailboxTypes = [email.toRecipients, email.ccRecipients, email.from];
-			
-			_.forEach(mailboxTypes, function(m, idx) {
-				test.ok(m instanceof Array);
-				test.ok(m.length > 0);
+    },
 
-				_.forEach(m, function(i, idx2) {
-					test.ok(i.name);
-					test.ok(i.emailAddress);
+    getEmailMailboxesSet: function (test) {
+        exchanger.getEmail(settings.itemId)
+            .then(function (email) {
+                var mailboxTypes = [email.toRecipients, email.ccRecipients, email.from];
 
-					if (idx === (mailboxTypes.length - 1) && idx2 === (m.length - 1)) {
-						test.done();
-					}
-				})
-			})
-  	});
-	},
+                _.forEach(mailboxTypes, function (m, idx) {
+                    test.ok(m instanceof Array);
+                    test.ok(m.length > 0);
 
+                    _.forEach(m, function (i, idx2) {
+                        test.ok(i.name);
+                        test.ok(i.emailAddress);
+                    });
+                });
+            })
+            .catch(test.ifError)
+            .finally(test.done)
+            .done();
+    }
 };
