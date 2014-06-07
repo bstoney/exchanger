@@ -1,3 +1,7 @@
+---
+*Not working yet*
+---
+
 Query Microsoft's Exchange Web Services. Only tested on Microsoft Exchange 2010.
 
 ##Install
@@ -30,5 +34,5 @@ npm install exchanger
   });
 ```
 
-###otherinformation
+###Other Information
 [EWS reference for Exchange](http://msdn.microsoft.com/en-us/library/office/bb204119\(v=exchg.150\).aspx)
