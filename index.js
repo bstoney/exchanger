@@ -6,10 +6,8 @@ var xml2js = require('xml2js');
 var fs = require('fs');
 var Q = require('q');
 var soap = require('soap');
-var jade = require('jade');
 
 (function (exports) {
-//    'use strict';
     exports.client = null;
 
     var enums = {
@@ -58,11 +56,8 @@ var jade = require('jade');
             return Q.reject(new Error('Call initialize()'));
         }
 
-        var options = {
-            folderName: folderName || enums.distinguishedFolderId.inbox,
-            limit: limit || 10,
-            emailAddress: emailAddress
-        };
+        folderName = folderName || enums.distinguishedFolderId.inbox;
+        limit = limit || 10;
 
         function processResult(result) {
             var responseMessage = result.Envelope.Body.FindItemResponse.ResponseMessages.FindItemResponseMessage;
@@ -94,7 +89,7 @@ var jade = require('jade');
                     size: item.Size,
                     importance: item.Importance,
                     hasAttachments: item.HasAttachments === 'true',
-                    from: item.From.Mailbox.Name,
+                    from: parseMailbox(item.From),
                     isRead: item.IsRead === 'true',
                     meta: {
                         itemId: itemId
@@ -106,12 +101,7 @@ var jade = require('jade');
             return emails;
         }
 
-        function findItem(soapRequest) {
-            return getSoapResponse(exports.client.FindItem, soapRequest);
-        }
-
-        return getSoapRequest(path.join(__dirname, 'resources/find_item.jade'), options)
-            .then(findItem)
+        return getSoapResponse(exports.client.FindItem, new FindItemRequest(folderName, limit, emailAddress))
             .then(parseSoapResponse)
             .then(processResult);
     };
@@ -135,7 +125,7 @@ var jade = require('jade');
         }
 
         function processResult(result) {
-            var responseMessage = result.Envelope.Body.FindItemResponse.ResponseMessages.GetItemResponseMessage;
+            var responseMessage = result.Envelope.Body.GetItemResponse.ResponseMessages.GetItemResponseMessage;
             var responseCode = responseMessage.ResponseCode;
 
             if (responseCode !== 'NoError') {
@@ -149,35 +139,9 @@ var jade = require('jade');
                 changeKey: item.ItemId.$.ChangeKey
             };
 
-            function handleMailbox(mailbox) {
-                var mailboxes = [];
-
-                if (!mailbox || !mailbox.Mailbox) {
-                    return mailboxes;
-                }
-                mailbox = mailbox.Mailbox;
-
-                function getMailboxObj(mailboxItem) {
-                    return {
-                        name: mailboxItem.Name,
-                        emailAddress: mailboxItem.EmailAddress
-                    };
-                }
-
-                if (mailbox instanceof Array) {
-                    mailbox.forEach(function (m, idx) {
-                        mailboxes.push(getMailboxObj(m));
-                    });
-                } else {
-                    mailboxes.push(getMailboxObj(mailbox));
-                }
-
-                return mailboxes;
-            }
-
-            var toRecipients = handleMailbox(item.ToRecipients);
-            var ccRecipients = handleMailbox(item.CcRecipients);
-            var from = handleMailbox(item.From);
+            var toRecipients = parseMailbox(item.ToRecipients);
+            var ccRecipients = parseMailbox(item.CcRecipients);
+            var from = parseMailbox(item.From);
 
             var email = {
                 id: itemId.id + '|' + itemId.changeKey,
@@ -200,65 +164,38 @@ var jade = require('jade');
             return email;
         }
 
-        function getItem(soapRequest) {
-            return getSoapResponse(exports.client.GetItem, soapRequest);
-        }
-
-        return getSoapRequest(path.join(__dirname, 'resources/get_item.jade'), itemId)
-            .then(getItem)
+        return getSoapResponse(exports.client.GetItem, new GetItemRequest(itemId))
             .then(parseSoapResponse)
             .then(processResult);
     };
 
-    exports.getFolders = function (id, callback) {
-        if (typeof(id) === 'function') {
-            callback = id;
-            id = 'inbox';
-        }
+    exports.getFolders = function (folderName) {
+        folderName = folderName || 'inbox';
 
-        var soapRequest =
-            '<tns:FindFolder xmlns:tns="http://schemas.microsoft.com/exchange/services/2006/messages">' +
-                '<tns:FolderShape>' +
-                '<t:BaseShape>Default</t:BaseShape>' +
-                '</tns:FolderShape>' +
-                '<tns:ParentFolderIds>' +
-                '<t:DistinguishedFolderId Id="inbox"></t:DistinguishedFolderId>' +
-                '</tns:ParentFolderIds>' +
-                '</tns:FindFolder>';
+        return getSoapResponse(exports.client.FindFolder, new FindFolderRequest(folderName))
+            .then(parseSoapResponse)
+            .then(processResult);
 
-        exports.client.FindFolder(soapRequest, function (err, result) {
-            if (err) {
-                callback(err);
-            }
-
-            if (result.ResponseMessages.FindFolderResponseMessage.ResponseCode === 'NoError') {
-                var rootFolder = result.ResponseMessages.FindFolderResponseMessage.RootFolder;
+        function processResult(result) {
+            var responseMessage = result.Envelope.Body.FindFolderResponse.ResponseMessages.FindFolderResponseMessage;
+            var responseCode = responseMessage.ResponseCode;
+            if (responseMessage.ResponseCode === 'NoError') {
+                var rootFolder = responseMessage.RootFolder;
 
                 rootFolder.Folders.Folder.forEach(function (folder) {
-                    // console.log(folder);
+                    throw "not implemented";
                 });
 
-                callback(null, {});
+                return [];
             }
-        });
+        }
     };
-
-    function getSoapRequest(filename, options) {
-        return Q.promise(function (resolve, reject) {
-            jade.renderFile(filename, options, function (err, data) {
-                if (err) {
-                    reject(err);
-                }
-                else {
-                    resolve(data);
-                }
-            });
-        });
-    }
 
     function getSoapResponse(operation, soapRequest) {
         return Q.promise(function (resolve, reject) {
-            operation.call(exports.client, soapRequest, function (err, result, body) {
+            var builder = new xml2js.Builder({explicitRoot: true, headless: true /*, renderOpts: {pretty: false}*/});
+            var xml = builder.buildObject(soapRequest);
+            operation.call(exports.client, xml, function (err, result, body) {
                 if (err) {
                     reject(err);
                 }
@@ -283,4 +220,79 @@ var jade = require('jade');
         });
     }
 
+    function parseMailbox(mailbox) {
+        var mailboxes = [];
+
+        if (!mailbox || !mailbox.Mailbox) {
+            return mailboxes;
+        }
+        mailbox = mailbox.Mailbox;
+
+        function getMailboxObj(mailboxItem) {
+            return {
+                name: mailboxItem.Name,
+                emailAddress: mailboxItem.EmailAddress
+            };
+        }
+
+        if (mailbox instanceof Array) {
+            mailbox.forEach(function (m, idx) {
+                mailboxes.push(getMailboxObj(m));
+            });
+        } else {
+            mailboxes.push(getMailboxObj(mailbox));
+        }
+
+        return mailboxes;
+    }
+
+    function FindItemRequest(folderName, limit, emailAddress) {
+        this.FindItem = {$: {xmlns: "http://schemas.microsoft.com/exchange/services/2006/messages", 'xmlns:t': "http://schemas.microsoft.com/exchange/services/2006/types", Traversal: "Shallow" },
+            ItemShape: {
+                't:BaseShape': 'IdOnly',
+                AdditionalProperties: {$: {xmlns: "http://schemas.microsoft.com/exchange/services/2006/types"},
+                    FieldURI: [
+                        { $: { FieldURI: "item:ItemId" }},
+                        { $: { FieldURI: "item:DateTimeCreated" }},
+                        { $: { FieldURI: "item:DateTimeSent" }},
+                        { $: { FieldURI: "item:HasAttachments" }},
+                        { $: { FieldURI: "item:Size" }},
+                        { $: { FieldURI: "message:From" }},
+                        { $: { FieldURI: "message:IsRead" }},
+                        { $: { FieldURI: "item:Importance" }},
+                        { $: { FieldURI: "item:Subject" }},
+                        { $: { FieldURI: "item:DateTimeReceived" }}
+                    ]
+                }},
+            IndexedPageItemView: {$: {BasePoint: "Beginning", Offset: "0", MaxEntriesReturned: limit}},
+            ParentFolderIds: {
+                DistinguishedFolderId: {$: {Id: folderName, xmlns: "http://schemas.microsoft.com/exchange/services/2006/types"}}
+            }};
+
+        if (emailAddress) {
+            this.FindItem.ParentFolderIds.DistinguishedFolderId.Mailbox = {EmailAddress: emailAddress };
+        }
+    }
+
+    function GetItemRequest(itemId) {
+        this.GetItem = {
+            $: {xmlns: "http://schemas.microsoft.com/exchange/services/2006/messages", 'xmlns:t': "http://schemas.microsoft.com/exchange/services/2006/types"},
+            ItemShape: {
+                't:BaseShape': 'Default',
+                't:IncludeMimeContent': 'true'},
+            ItemIds: {
+                't:ItemId': {$: {Id: itemId.id, ChangeKey: itemId.changeKey}}
+            }
+        }
+    }
+
+    function FindFolderRequest(folderName) {
+        this.FindFolder = {
+            $: {xmlns: "http://schemas.microsoft.com/exchange/services/2006/messages", 'xmlns:t': "http://schemas.microsoft.com/exchange/services/2006/types"},
+            FolderShape: { 't:BaseShape': 'Default'},
+            ParentFolderIds: {
+                DistinguishedFolderId: {$: {Id: folderName, xmlns: "http://schemas.microsoft.com/exchange/services/2006/types"}}
+            }
+        };
+    }
 })(this.exports || this);
