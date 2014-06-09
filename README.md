@@ -54,13 +54,30 @@ npm install exchanger
 ###exchanger.getFolders(client, folderName, emailAddress)
 
 ``` javascript
-  var exchanger = require('exchanger');
-  exchanger.initialize({ url: 'webmail.example.com', username: 'username', password: 'password' })
-    .then(function(client) {
-        return exchanger.getFolders(client, 'inbox', 'email@test.com');
-    })
-    .then(function(folders){
-        console.log(folders);
+    var exchanger = require('exchanger');
+    exchanger.initialize({ url: 'webmail.example.com', username: 'username', password: 'password' })
+        .then(function(client) {
+            return exchanger.getFolders(client, 'inbox', 'email@test.com');
+        })
+        .then(function(folders){
+            console.log(folders);
+        });
+```
+
+##Support for callbacks rather then promises
+
+``` javascript
+    var exchanger = require('exchanger').withCallbacks;
+    exchanger.initialize({ url: 'webmail.example.com', username: 'username', password: 'password' }, function(err) {
+        console.log(err);
+        exchanger.getEmails('inbox', 50, 'email@test.com', function(err, emails){
+            if(err){
+                console.log(err);
+                return;
+            }
+
+            console.log(emails);
+        });
     });
 ```
 
