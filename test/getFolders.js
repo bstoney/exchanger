@@ -8,9 +8,9 @@ module.exports = {
     setUp: function (callback) {
         var self = this;
         this.client = {
-            FindItem: function (soapRequest, callback) {
+            FindFolder: function (soapRequest, callback) {
                 self.lastSoapRequest = soapRequest;
-                fs.readFile(path.join(__dirname, 'getEmailsSoapResponse.xml'), 'utf8', function (err, body) {
+                fs.readFile(path.join(__dirname, 'getFoldersSoapResponse.xml'), 'utf8', function (err, body) {
                     var result = '';
                     callback(null, result, body);
                 });
@@ -20,8 +20,8 @@ module.exports = {
         callback();
     },
 
-    getEmailsWithNoClient: function (test) {
-        exchanger.getEmails(null)
+    getFoldersWithNoClient: function (test) {
+        exchanger.getFolders(null)
             .then(test.ifError, test.ok)
             .finally(function () {
                 test.expect(1);
@@ -30,26 +30,25 @@ module.exports = {
             .done();
     },
 
-    getEmailsWithAllArgs: function (test) {
+    getFoldersWithAllArgs: function (test) {
         var self = this;
-        exchanger.getEmails(this.client, 'sentitems', 4, 'email@test.com')
-            .then(function (emails) {
-                test.ok(emails);
+        exchanger.getFolders(this.client, 'sentitems', 'email@test.com')
+            .then(function (folders) {
+                test.ok(folders);
                 test.ok(/DistinguishedFolderId Id="sentitems"/.test(self.lastSoapRequest));
-                test.ok(/MaxEntriesReturned="4"/.test(self.lastSoapRequest));
+                test.ok(/Mailbox><EmailAddress>email@test.com/.test(self.lastSoapRequest));
             })
             .catch(test.ifError)
             .finally(test.done)
             .done();
     },
 
-    getEmailsWithFoldernameAndLimit: function (test) {
+    getFoldersWithFolderName: function (test) {
         var self = this;
-        exchanger.getEmails(this.client, 'sentitems', 4)
-            .then(function (emails) {
-                test.ok(emails);
+        exchanger.getFolders(this.client, 'sentitems')
+            .then(function (folders) {
+                test.ok(folders);
                 test.ok(/DistinguishedFolderId Id="sentitems"/.test(self.lastSoapRequest));
-                test.ok(/MaxEntriesReturned="4"/.test(self.lastSoapRequest));
                 test.ifError(/Mailbox><EmailAddress>email@test.com/.test(self.lastSoapRequest));
             })
             .catch(test.ifError)
@@ -57,27 +56,12 @@ module.exports = {
             .done();
     },
 
-    getEmailsWithFolderName: function (test) {
+    getFoldersWithNoArgs: function (test) {
         var self = this;
-        exchanger.getEmails(this.client, 'sentitems')
-            .then(function (emails) {
-                test.ok(emails);
-                test.ok(/DistinguishedFolderId Id="sentitems"/.test(self.lastSoapRequest));
-                test.ok(/MaxEntriesReturned="10"/.test(self.lastSoapRequest));
-                test.ifError(/Mailbox><EmailAddress>email@test.com/.test(self.lastSoapRequest));
-            })
-            .catch(test.ifError)
-            .finally(test.done)
-            .done();
-    },
-
-    getEmailsWithNoArgs: function (test) {
-        var self = this;
-        exchanger.getEmails(this.client)
-            .then(function (emails) {
-                test.ok(emails);
+        exchanger.getFolders(this.client)
+            .then(function (folders) {
+                test.ok(folders);
                 test.ok(/DistinguishedFolderId Id="inbox"/.test(self.lastSoapRequest));
-                test.ok(/MaxEntriesReturned="10"/.test(self.lastSoapRequest));
                 test.ifError(/Mailbox><EmailAddress>email@test.com/.test(self.lastSoapRequest));
             })
             .catch(test.ifError)
@@ -85,12 +69,12 @@ module.exports = {
             .done();
     },
 
-    getEmailsIdSet: function (test) {
-        exchanger.getEmails(this.client)
-            .then(function (emails) {
-                test.ok(emails.length > 0);
+    getFoldersIdSet: function (test) {
+        exchanger.getFolders(this.client)
+            .then(function (folders) {
+                test.ok(folders.length > 0);
 
-                emails.forEach(function (item, idx) {
+                folders.forEach(function (item, idx) {
                     test.ok(item.id);
 
                     test.ok(item.id.split('|').length === 2);

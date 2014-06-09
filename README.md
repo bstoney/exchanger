@@ -1,8 +1,6 @@
----
-*Not working yet*
----
-
-Query Microsoft's Exchange Web Services. Only tested on Microsoft Exchange 2010.
+Query Microsoft's Exchange Web Services.
+Only tested on Microsoft Exchange 2010.
+With asynchronous promises.
 
 ##Install
 
@@ -14,24 +12,56 @@ npm install exchanger
 
 ##Module
 
-###exchanger.initialize(settings, callback)
+###exchanger.initialize(settings)
 
 ``` javascript
   var exchanger = require('exchanger');
-  exchanger.initialize({ url: 'webmail.example.com', username: 'username', password: 'password' }, function(err) {
-    console.log('Initialized!');
-  });
+  exchanger.initialize({ url: 'webmail.example.com', username: 'username', password: 'password' })
+    .then(function(client) {
+        console.log('Initialized!');
+    });
 ```
 
-###exchanger.getEmails(folderName, limit, callback)
+###exchanger.getEmails(client, folderName, limit, emailAddress)
 
 ``` javascript
   var exchanger = require('exchanger');
-  exchanger.initialize({ url: 'webmail.example.com', username: 'username', password: 'password' }, function(err) {
-    exchanger.getEmails('inbox', 50, function(err, emails) {
-      console.log(emails);
+  exchanger.initialize({ url: 'webmail.example.com', username: 'username', password: 'password' })
+    .then(function(client) {
+        return exchanger.getEmails(client, 'inbox', 50, 'email@test.com');
+    })
+    .then(function(emails){
+        console.log(emails);
     });
-  });
+```
+
+###exchanger.getEmail(client, id)
+
+``` javascript
+  var exchanger = require('exchanger');
+  exchanger.initialize({ url: 'webmail.example.com', username: 'username', password: 'password' })
+    .then(function(client) {
+        return [client, exchanger.getEmails(client, 'inbox', 50, 'email@test.com')];
+    })
+    .then(function(client, emails){
+        return exchanger.getEmail(client, emails[0].id);
+    })
+    .then(function(email){
+        console.log(email);
+    });
+```
+
+###exchanger.getFolders(client, folderName, emailAddress)
+
+``` javascript
+  var exchanger = require('exchanger');
+  exchanger.initialize({ url: 'webmail.example.com', username: 'username', password: 'password' })
+    .then(function(client) {
+        return exchanger.getFolders(client, 'inbox', 'email@test.com');
+    })
+    .then(function(folders){
+        console.log(folders);
+    });
 ```
 
 ###Other Information

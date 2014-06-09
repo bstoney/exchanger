@@ -8,7 +8,7 @@ var exchanger = require('../index');
 module.exports = {
     setUp: function (callback) {
         var self = this;
-        exchanger.client = {
+        this.client = {
             GetItem: function (soapRequest, callback) {
                 self.lastSoapRequest = soapRequest;
                 fs.readFile(path.join(__dirname, 'getEmailSoapResponse.xml'), 'utf8', function (err, body) {
@@ -22,9 +22,7 @@ module.exports = {
     },
 
     getEmailWithNoClient: function (test) {
-        exchanger.client = null;
-
-        exchanger.getEmail(settings.itemId)
+        exchanger.getEmail(null, settings.itemId)
             .then(test.ifError, test.ok)
             .finally(function () {
                 test.expect(1);
@@ -34,7 +32,7 @@ module.exports = {
     },
 
     getEmailWithItemId: function (test) {
-        exchanger.getEmail(settings.itemId)
+        exchanger.getEmail(this.client, settings.itemId)
             .then(function (email) {
                 test.ok(email);
             })
@@ -45,7 +43,7 @@ module.exports = {
 
     getEmailWithId: function (test) {
         var id = settings.itemId.id + "|" + settings.itemId.changeKey;
-        exchanger.getEmail(id)
+        exchanger.getEmail(this.client, id)
             .then(function (email) {
                 test.ok(email);
             })
@@ -56,7 +54,7 @@ module.exports = {
 
     getEmailWithInvalidId: function (test) {
         var id = "blob";
-        exchanger.getEmail(id)
+        exchanger.getEmail(this.client, id)
             .then(test.ifError, test.ok)
             .finally(function () {
                 test.expect(1);
@@ -67,7 +65,7 @@ module.exports = {
     },
 
     getEmailMailboxesSet: function (test) {
-        exchanger.getEmail(settings.itemId)
+        exchanger.getEmail(this.client, settings.itemId)
             .then(function (email) {
                 var mailboxTypes = [email.toRecipients, email.ccRecipients, email.from];
 
