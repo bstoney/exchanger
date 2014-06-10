@@ -3,21 +3,25 @@ var fs = require('fs');
 var path = require('path');
 var _ = require('underscore');
 var exchanger = require('../index');
+var settings = require('./settings');
 
 module.exports = {
     setUp: function (callback) {
+        this.client = null;
+        this.lastSoapRequest = null;
         var self = this;
-        this.client = {
-            FindFolder: function (soapRequest, callback) {
+        exchanger.initialize(settings).then(function (client) {
+            self.client = client;
+            client.FindFolder = function (soapRequest, callback) {
                 self.lastSoapRequest = soapRequest;
                 fs.readFile(path.join(__dirname, 'getFoldersSoapResponse.xml'), 'utf8', function (err, body) {
                     var result = '';
                     callback(null, result, body);
                 });
-            }
-        };
+            };
 
-        callback();
+            callback();
+        });
     },
 
     getFoldersWithNoClient: function (test) {

@@ -2,23 +2,26 @@ var assert = require('assert');
 var fs = require('fs');
 var path = require('path');
 var _ = require('underscore');
-var settings = require('./settings');
 var exchanger = require('../index');
+var settings = require('./settings');
 
 module.exports = {
     setUp: function (callback) {
+        this.client = null;
+        this.lastSoapRequest = null;
         var self = this;
-        this.client = {
-            GetItem: function (soapRequest, callback) {
+        exchanger.initialize(settings).then(function (client) {
+            self.client = client;
+            client.GetItem = function (soapRequest, callback) {
                 self.lastSoapRequest = soapRequest;
                 fs.readFile(path.join(__dirname, 'getEmailSoapResponse.xml'), 'utf8', function (err, body) {
                     var result = '';
                     callback(null, result, body);
                 });
-            }
-        };
+            };
 
-        callback();
+            callback();
+        });
     },
 
     getEmailWithNoClient: function (test) {
